@@ -1,0 +1,128 @@
+// Projeto 3 - Motores/ Carro autônomo
+// Henrique Itao Palos Ra157984 
+// Ricardo Pinto Ra147826
+// Este projeto consiste de um carrinho autonomo com quatro motores e sensor ultrassonico.
+// Para os motores funcionarem, foi o CI's L293D que possui duas pontes H, assim conseguindo controlar a rotação de dois motores
+// Foram usados dois CI's L293D, para que assim fosse possivel controlar 4 motores
+// Os dois motores da direita funcionam em conjunto, assim como os dois motores da esquerda
+// Para a parte autonoma, foi usado um sensor ultrassonico.
+// Assim o carrinho irá para frente enquanto não ver nada, e girara se estiver verndo algo em menos de 10cm
+// Referencias:
+// http://blog.filipeflop.com/sensores/sensor-ultrassonico-hc-sr04-ao-arduino.html
+// http://www.ti.com/lit/ds/symlink/l293.pdf
+
+
+#include <Ultrasonic.h>
+ 
+//Define os pinos para o trigger e echo do sensor ultrassonico
+int PinoTrigger = 7;
+int PinoEcho = 6;
+
+//Lado esquerdo do carrinho
+int PinoVelocidade = 9; //Ligado ao pino 1 do L293D  
+int Entrada1 = 2; //Ligado ao pino 2 do L293D  
+int Entrada2 = 3; //Ligado ao pino 7 do L293D  
+
+// Lado direito do carrinho
+int PinoVelocidade2 = 10; //Ligado ao pino 9 do L293D  
+int Entrada3 = 4; //Ligado ao pino 10 do L293D  
+int Entrada4 = 5; //Ligado ao pino 15 do L293D  
+
+int Distancia=0; 
+int Parar=0;
+
+Ultrasonic ultrasonic(PinoTrigger, PinoEcho);
+   
+void setup()  
+{  
+  //Define os pinos como saida para o lado esquerdo do carrinho 
+  pinMode(PinoVelocidade, OUTPUT);  
+  pinMode(Entrada1, OUTPUT);  
+  pinMode(Entrada2, OUTPUT);  
+
+  //Define os pinos como saida para o lado direito  do carrinho 
+  pinMode(PinoVelocidade2, OUTPUT);  
+  pinMode(Entrada3, OUTPUT);  
+  pinMode(Entrada4, OUTPUT);  
+  
+  Serial.begin(9600);
+}  
+   
+void loop()  
+{ 
+  //Define a Velocidade de rotacao  
+  int Velocidade = 100;  
+  analogWrite(PinoVelocidade, Velocidade);   
+  analogWrite(PinoVelocidade2, Velocidade); 
+  
+  Distancia = Medir();
+  Serial.print(Distancia);
+  Serial.print("\n");
+
+  // caso sensor não veja algo em 10cm, ele irá para frente
+  if(Distancia>=10){
+    if(Parar==0){ //se o carrinho estiver mudando de movimento ele primeiro irá parar para não forçar muito os motores
+      ParaMotor();
+      Parar=1;
+    }
+    Frente(); 
+  }
+
+  // caso sensor veja um objeto em 10cm, um lado irá para frente, enquanto o outro irá para trás, assim fazendo o carrinho girar no proprio eixo
+  if(Distancia<=10){
+    if(Parar==1)
+    {
+      ParaMotor();//se o carrinho estiver mudando de movimento ele primeiro irá parar para não forçar muito os motores
+      Parar=0;
+    }
+    Objeto();
+  }
+
+}  
+
+void ParaMotor(){  
+  digitalWrite(Entrada1, LOW);  
+  digitalWrite(Entrada2, LOW);  
+  digitalWrite(Entrada3, LOW);  
+  digitalWrite(Entrada4, LOW);  
+  delay(10);  
+}
+
+void Frente(){
+  digitalWrite(Entrada1, HIGH);  
+  digitalWrite(Entrada2, LOW);  
+  digitalWrite(Entrada3, HIGH);  
+  digitalWrite(Entrada4, LOW);    
+}
+
+void Objeto(){
+  digitalWrite(Entrada1, HIGH);  
+  digitalWrite(Entrada2, LOW);  
+  digitalWrite(Entrada3, LOW);  
+  digitalWrite(Entrada4, HIGH);  
+}
+
+//função que faz a medicao do sensor de varias vezes e realiza a mediana, para evitar que uma leitura errada seja interpretado pelo controlador
+int Medir(){
+  int vNumeros[9];
+  int j=0;
+  int E=0;
+  int Temp=0;
+ 
+ // Obtemos os 10 números e os guardamos em vNumeros
+ for(E = 0; E <9; E++){
+  long microsec = ultrasonic.timing();
+  vNumeros[E] = ultrasonic.convert(microsec, Ultrasonic::CM);
+  }
+  // Ordenamos os números no vetor vNumeros 
+  for (E = 0; E < 9; E++){
+    for (j = E + 1; j < 9; j++){
+      if (vNumeros[j] < vNumeros[E]){ 
+        Temp = vNumeros[j]; 
+        vNumeros[j] = vNumeros[E]; 
+        vNumeros[E] = Temp; 
+      } 
+    } 
+  }
+  return vNumeros[4]; //retorna o valor da mediana
+}
